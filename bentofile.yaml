@@ -1,0 +1,7 @@
+service: "bentoml_service.service:HousePricePredictor"
+include:
+  - "bentoml_service/service.py"
+  - "models/house_price.pkl"
+python:
+  requirements_txt: "./requirements.txt"
+  lock_packages: false

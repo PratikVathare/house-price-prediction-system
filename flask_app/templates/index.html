@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Price Predictor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.25);
+            --success: #10b981;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        header p { color: var(--text-secondary); font-size: 0.95rem; }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .card h2 { font-size: 1.25rem; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 10px; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+        }
+
+        .full-width { grid-column: span 2; }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+        .form-group input, .form-group select {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-glass);
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            user-select: none;
+        }
+
+        .checkbox-label input { accent-color: var(--accent); }
+        .checkbox-label:hover { border-color: rgba(255, 255, 255, 0.15); }
+
+        .btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover { background: #4f46e5; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .result-box {
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px dashed var(--accent);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .result-box.hidden { display: none; }
+        .result-box h3 { font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px; }
+        .price-val { font-size: 2rem; font-weight: 700; color: #fff; }
+        .source-tag { font-size: 0.75rem; color: var(--success); margin-top: 5px; }
+
+        /* Logs Table */
+        .table-container { overflow-x: auto; margin-top: 20px; }
+        .logs-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+        .logs-table th, .logs-table td { padding: 12px 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .logs-table th { color: var(--text-secondary); font-weight: 600; }
+        .logs-table tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+        .price-col { font-weight: 600; color: var(--success); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>House Price Prediction System</h1>
+            <p>A simple model serving application using PyCaret, MLflow, and FastAPI</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <h2>Predict House Value</h2>
+                <form id="predict-form" class="form-grid">
+                    <div class="form-group">
+                        <label for="area">Area (sqft)</label>
+                        <input type="number" id="area" name="area" placeholder="e.g. 5000" min="500" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bedrooms">Bedrooms</label>
+                        <select id="bedrooms" name="bedrooms">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3" selected>3</option>
+                            <option value="4">4</option>
+                            <option value="5">5+</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bathrooms">Bathrooms</label>
+                        <select id="bathrooms" name="bathrooms">
+                            <option value="1" selected>1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="stories">Stories</label>
+                        <select id="stories" name="stories">
+                            <option value="1" selected>1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="parking">Parking Spaces</label>
+                        <select id="parking" name="parking">
+                            <option value="0" selected>0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="furnishingstatus">Furnishing</label>
+                        <select id="furnishingstatus" name="furnishingstatus">
+                            <option value="furnished">Furnished</option>
+                            <option value="semi-furnished" selected>Semi-Furnished</option>
+                            <option value="unfurnished">Unfurnished</option>
+                        </select>
+                    </div>
+
+                    <div class="toggle-group full-width">
+                        <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Features & Amenities</label>
+                        <div class="checkbox-grid">
+                            <label class="checkbox-label"><input type="checkbox" id="mainroad" name="mainroad" checked> Main Road</label>
+                            <label class="checkbox-label"><input type="checkbox" id="guestroom" name="guestroom"> Guest Room</label>
+                            <label class="checkbox-label"><input type="checkbox" id="basement" name="basement"> Basement</label>
+                            <label class="checkbox-label"><input type="checkbox" id="hotwaterheating" name="hotwaterheating"> Hot Water</label>
+                            <label class="checkbox-label"><input type="checkbox" id="airconditioning" name="airconditioning" checked> A/C</label>
+                            <label class="checkbox-label"><input type="checkbox" id="prefarea" name="prefarea"> Preferred Area</label>
+                        </div>
+                    </div>
+
+                    <div class="full-width">
+                        <button type="submit" id="submit-btn" class="btn">Calculate Value</button>
+                    </div>
+                </form>
+
+                <div id="result" class="result-box hidden">
+                    <h3>Estimated Value</h3>
+                    <p class="price-val" id="price-display">₹ 0.00</p>
+                    <p class="source-tag" id="source-display"></p>
+                </div>
+            </div>
+
+            <!-- Database History Table -->
+            <div class="card">
+                <h2>Recent Predictions Log</h2>
+                <div class="table-container">
+                    {% if history %}
+                    <table class="logs-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Area</th>
+                                <th>Specs (BHK/Bath)</th>
+                                <th>AC</th>
+                                <th>Furnishing</th>
+                                <th>Source</th>
+                                <th>Predicted Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in history %}
+                            <tr>
+                                <td>{{ r.created_at }}</td>
+                                <td>{{ r.area }} sqft</td>
+                                <td>{{ r.bedrooms }} BHK / {{ r.bathrooms }} Bath</td>
+                                <td>{{ r.airconditioning }}</td>
+                                <td>{{ r.furnishingstatus }}</td>
+                                <td>{{ r.source }}</td>
+                                <td class="price-col">₹ {{ "{:,.2f}".format(r.predicted_price) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p style="text-align: center; color: var(--text-secondary); padding: 20px;">No predictions registered yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById("predict-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById("submit-btn");
+            btn.disabled = true;
+            btn.textContent = "Calculating...";
+
+            const formData = new FormData(e.target);
+            const requestData = new URLSearchParams();
+
+            // Setup basic inputs
+            requestData.append("area", formData.get("area") || "0");
+            requestData.append("bedrooms", formData.get("bedrooms") || "3");
+            requestData.append("bathrooms", formData.get("bathrooms") || "1");
+            requestData.append("stories", formData.get("stories") || "1");
+            requestData.append("parking", formData.get("parking") || "0");
+            requestData.append("furnishingstatus", formData.get("furnishingstatus") || "unfurnished");
+
+            // Setup checkbox boolean inputs
+            const checks = ["mainroad", "guestroom", "basement", "hotwaterheating", "airconditioning", "prefarea"];
+            checks.forEach(c => {
+                requestData.append(c, document.getElementById(c).checked ? "yes" : "no");
+            });
+
+            try {
+                const res = await fetch("/predict", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: requestData
+                });
+
+                const data = await res.json();
+                if (data.status === "success") {
+                    const price = new Intl.NumberFormat("en-IN", {
+                        style: "currency",
+                        currency: "INR"
+                    }).format(data.prediction);
+                    
+                    document.getElementById("price-display").textContent = price;
+                    document.getElementById("source-display").textContent = "Source: " + data.source;
+                    document.getElementById("result").classList.remove("hidden");
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch (err) {
+                alert("Connection failed.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Calculate Value";
+            }
+        });
+    </script>
+</body>
+</html>

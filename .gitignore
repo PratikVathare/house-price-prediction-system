@@ -1,0 +1,27 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python caching
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment configuration (secrets, DB credentials)
+.env
+
+# Local Databases and logs
+*.db
+*.log
+mlruns/
+.mlflow/
+
+# Generated BentoML builds and caches
+.bentoml/
+bentoml/
+build/
+dist/
+
+# Serialized models (trained on Jenkins during CI/CD)
+models/house_price.pkl
