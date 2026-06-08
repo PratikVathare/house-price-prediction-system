@@ -9,42 +9,46 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 echo 'Installing python dependencies...'
-                bat 'pip install -r requirements.txt'
+                bat '''
+                if not exist venv\\Scripts\\python.exe python -m venv venv || exit /b 1
+                venv\\Scripts\\python.exe -m pip install --upgrade pip || exit /b 1
+                venv\\Scripts\\python.exe -m pip install --pre --cache-dir "%WORKSPACE%\\.pip-cache" -r requirements.txt || exit /b 1
+                venv\\Scripts\\python.exe -c "import pandas; import pycaret" || exit /b 1
+                '''
             }
         }
 
         stage('Run AutoML & Training') {
             steps {
                 echo 'Starting training pipeline (PyCaret AutoML & MLflow logging)...'
-                bat 'python src/train.py'
+                bat 'venv\\Scripts\\python.exe src\\train.py'
             }
         }
 
         stage('Verify Outputs') {
             steps {
                 echo 'Checking if model was correctly serialized...'
-                bat 'python -c "import os; assert os.path.exists(\'models/house_price.pkl\'), \'Model training failed!\'"'
+                bat 'venv\\Scripts\\python.exe -c "import os; assert os.path.exists(\'models/house_price.pkl\'), \'Model training failed!\'"'
             }
         }
 
         stage('Deploy Services') {
             steps {
                 echo 'Deploying FastAPI backend and Flask frontend services...'
-                // Using set BUILD_ID=dontKillMe prevents Jenkins from killing background processes when the job finishes
+                // These variables prevent Jenkins from killing background services after the job finishes.
                 bat '''
                 set BUILD_ID=dontKillMe
+                set JENKINS_NODE_COOKIE=dontKillMe
                 
                 :: Kill existing processes on ports 8000 and 5000 if they are running
-                for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000') do taskkill /F /PID %%a 2>nul || true
-                for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5000') do taskkill /F /PID %%a 2>nul || true
+                for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000') do taskkill /F /PID %%a 2>nul
+                for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5000') do taskkill /F /PID %%a 2>nul
                 
                 :: Start FastAPI and Flask in the background
-                start /B venv\\Scripts\\python.exe -m uvicorn fastapi_app.main:app --host 0.0.0.0 --port 8000
-                start /B venv\\Scripts\\python.exe flask_app/app.py
+                start "FastAPI" /B cmd /c "venv\\Scripts\\python.exe -m uvicorn fastapi_app.main:app --host 0.0.0.0 --port 8000 > fastapi.log 2>&1"
+                start "Flask" /B cmd /c "venv\\Scripts\\python.exe flask_app/app.py > flask.log 2>&1"
                 '''
             }
         }
     }
 }
-
-
